@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { text-align: left; }
+    .row { display: flex; gap: 16px; align-items: center; }
+    .card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>My Calculations</h1>
+
+  <div class="row">
+    <div class="card">
+      <label>
+        Operation:
+        <select id="op">
+          <option value="">(all)</option>
+          <option value="add">add</option>
+          <option value="subtract">subtract</option>
+          <option value="multiply">multiply</option>
+          <option value="divide">divide</option>
+          <option value="power">power</option>
+        </select>
+      </label>
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <div class="card" id="stats">Loading stats…</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Created</th><th>Operation</th><th>Operand1</th><th>Operand2</th><th>Result</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script>
+    async function getJSON(url) {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function load() {
+      try {
+        // history
+        const op = document.getElementById("op").value;
+        const qs = op ? `?op=${encodeURIComponent(op)}` : "";
+        const rows = await getJSON(`/api/calculations${qs}`);
+        const tb = document.getElementById("tbody");
+        tb.innerHTML = rows.map(r =>
+          `<tr>
+             <td>${r.created_at ?? ""}</td>
+             <td>${r.operation}</td>
+             <td>${r.operand1}</td>
+             <td>${r.operand2 ?? ""}</td>
+             <td>${r.result}</td>
+           </tr>`).join("");
+
+        // stats
+        const stats = await getJSON(`/api/calculations/reports/summary`);
+        document.getElementById("stats").innerHTML = `
+          <div><b>Total:</b> ${stats.total_calculations}</div>
+          <div><b>Most used op:</b> ${stats.most_used_operation ?? "-"}</div>
+          <div><b>Avg op1:</b> ${stats.avg_operand1 ?? "-"}</div>
+          <div><b>Avg op2:</b> ${stats.avg_operand2 ?? "-"}</div>
+          <div><b>Avg result:</b> ${stats.avg_result ?? "-"}</div>
+        `;
+      } catch (e) {
+        alert("Not authenticated or error loading data. Please login first.");
+        console.error(e);
+      }
+    }
+
+    document.getElementById("refresh").onclick = load;
+    load();
+  </script>
+</body>
+</html>
